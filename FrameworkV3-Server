@@ -1,0 +1,106 @@
+
+local Rep = game:GetService("ReplicatedStorage")
+local Events = Rep:WaitForChild("Events")
+local Modules = Rep:WaitForChild("Modules")
+
+-- fastcast stuff
+local FastCast = require(Modules.FastCastRedux)
+local caster = FastCast.new()
+
+local SS = game:GetService("ServerStorage")
+local Models = SS:WaitForChild("Models")
+
+FastCast.VisualizeCasts = false
+
+-- poo
+
+Events.Sprint.OnServerEvent:Connect(function(plr, sprinting)
+	if sprinting then
+		plr.Character.Humanoid.WalkSpeed = 22
+	else
+		plr.Character.Humanoid.WalkSpeed = 16
+	end
+end)
+
+
+-- FastCast
+
+function onLengthChanged(cast, lastPoint, direction, length, velocity, bullet)
+	if bullet then
+		local bulletLength = bullet.Size.X/2
+		local offset = CFrame.new(0, 0, -(length-bulletLength))
+		bullet.CFrame = CFrame.lookAt(lastPoint, lastPoint + direction):ToWorldSpace(offset)
+	end
+end
+
+function onRayHit(cast, result, velocity, bullet)
+	local hit = result.Instance
+	
+	local thing = hit:FindFirstAncestorWhichIsA("Model")
+	
+	if thing and thing:FindFirstChild("IsGlass") and thing:FindFirstChild("GlassShards") and thing:FindFirstChild("OriginalPane") then -- glass
+		thing:FindFirstChild("OriginalPane"):Destroy()
+		for _, shards in pairs(thing:FindFirstChild("GlassShards"):GetChildren()) do
+			local randomOrientation = math.random(5, 25)
+			local defaultTransparency = 0.5
+			shards.Parent = workspace
+			shards.Anchored = false
+			if thing:FindFirstChild("GlassShardTransparency") then
+				shards.Transparency = thing:FindFirstChild("GlassShardTransparency").Value
+			else
+				shards.Transparency = defaultTransparency
+			end
+			shards.Orientation = Vector3.new(shards.Orientation.X, shards.Orientation.Y, randomOrientation)
+		end
+	end
+	
+	if thing and thing:FindFirstChild("HumanoidRootPart") then
+		thing:FindFirstChild("Humanoid"):TakeDamage(10)
+	end
+	
+	game:GetService("Debris"):AddItem(bullet, 2)
+end
+
+Rep.Events.Shoot.OnServerEvent:Connect(function(plr, mousePos, firePointPos, bulletAcceleration, firePointOrientationY)
+	local bulletFolder = workspace:FindFirstChild("BulletFolder") or Instance.new("Folder", workspace)
+	bulletFolder.Name = "BulletFolder"
+	
+	-- bullet create
+	
+	local bulletCreate = SS.Models:FindFirstChild("Bullet"):Clone()
+	bulletCreate.Anchored = true
+	bulletCreate.CanCollide = false
+	bulletCreate.Orientation = Vector3.new(bulletCreate.Orientation.X, firePointOrientationY, bulletCreate.Orientation.Z)
+	
+	-- cast behavior
+	
+	local castParams = RaycastParams.new()
+	castParams.FilterType = Enum.RaycastFilterType.Blacklist
+	castParams.IgnoreWater = true
+	
+	castParams.FilterDescendantsInstances = {plr.Character, bulletFolder}
+	
+	local castBehavior = FastCast.newBehavior()
+	castBehavior.RaycastParams = castParams
+	castBehavior.Acceleration = bulletAcceleration
+	castBehavior.AutoIgnoreContainer = false
+	castBehavior.CosmeticBulletContainer = bulletFolder
+	castBehavior.CosmeticBulletTemplate = bulletCreate
+	
+	-- studs per second
+	
+	local randomValue = 600
+	
+	-- raycast stuff
+	
+	local origin = firePointPos
+	local direction = (mousePos-origin).Unit
+	
+	-- fire the gun
+	
+	caster:Fire(origin, direction, randomValue, castBehavior)
+	print("Fired at ", mousePos, "FirePoint position: ", firePointPos) -- debug only
+end)
+
+caster.LengthChanged:Connect(onLengthChanged)
+caster.RayHit:Connect(onRayHit)
