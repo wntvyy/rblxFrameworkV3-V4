@@ -1,0 +1,443 @@
+
+-- Framework V3
+
+repeat wait()
+until game:IsLoaded()
+
+local Rep = game:GetService("ReplicatedStorage")
+local Events = Rep:WaitForChild("Events")
+local Modules = Rep:WaitForChild("Modules")
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local TS = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+
+local Player = game.Players.LocalPlayer
+local Char = Player.Character or Player.Character:Wait()
+local Mouse = Player:GetMouse()
+local PlayerGui = Player.PlayerGui
+
+local Cam = workspace.CurrentCamera
+
+-- Gun Variables
+
+local aiming = false
+local running = false
+local shooting = false
+local mouse1down = false
+local sprinting = false
+local reloading = false
+
+local weaponInHand
+local weaponData
+
+local primary
+local secondary
+local melee
+
+local Set = false
+
+local canSwing = true
+
+-- CFrames
+
+local mainCF = CFrame.new()
+local aimCF = CFrame.new()
+local sprintCF = CFrame.new()
+local shootCF = CFrame.new()
+local bobCF = CFrame.new()
+
+-- Tables
+
+local gunTable = {
+	
+};
+
+local keyTable = {
+	["Primary"] = Enum.KeyCode.One;
+	["Secondary"] = Enum.KeyCode.Two;
+	["Melee"] = Enum.KeyCode.Three;
+};
+
+-- Begin
+
+RunService.RenderStepped:Connect(function()
+	UIS.MouseIconEnabled = false
+	if weaponInHand then
+		weaponInHand:SetPrimaryPartCFrame(
+			Cam.CFrame *
+			mainCF *
+			aimCF * 
+			sprintCF *
+			bobCF
+		)
+	end
+	
+	if aiming then
+		aimCF = aimCF:Lerp(weaponData.AimCFrame, 0.1)
+	else
+		aimCF = aimCF:Lerp(CFrame.new(), 0.1)
+	end
+	
+	if running then
+		bobCF = bobCF:Lerp(CFrame.new(
+			0.1 * math.sin(tick() * 6),
+			0.06 * math.sin(tick() * 12),
+			0
+			), 0.1)
+		
+		if sprinting then
+			sprintCF = sprintCF:Lerp(weaponData.SprintCFrame, 0.1)
+		else
+			sprintCF = sprintCF:Lerp(CFrame.new(), 0.1)
+		end
+	else
+		bobCF = bobCF:Lerp(CFrame.new(), 0.1)
+		sprintCF = sprintCF:Lerp(CFrame.new(), 0.1)
+	end
+end)
+
+local function setup(primaryWeapon, secondaryWeapon, meleeWeapon)
+	-- Optional Setup
+	
+	--[[
+	
+	1 = Primary
+	2 = Secondary
+	3 = Melee
+	
+	--]]
+	
+	table.insert(gunTable, 1, primaryWeapon) -- primary
+	table.insert(gunTable, 2, secondaryWeapon) -- secondary
+	table.insert(gunTable, 3, meleeWeapon) -- melee
+	
+	primary = gunTable[1]
+	secondary = gunTable[2]
+	melee = gunTable[3]
+end
+
+setup("Honey Badger", "", "Knife")
+
+local function holdSequence(weapon, Type)
+	if weaponInHand then
+		local newAnim = Instance.new("Animation")
+		newAnim.Parent = weaponInHand
+		newAnim.AnimationId = weaponData.HoldAnim
+		newAnim.Name = "Hold"
+			
+		local animLoad = weaponInHand:FindFirstChild("Humanoid"):LoadAnimation(newAnim)
+		animLoad:Play()
+	end
+end
+
+local function setWeapons(weapon, Type)
+	if not Set then
+		Set = true
+		local newWeapon = Rep.GunModels:FindFirstChild(gunTable[1]):Clone()
+		newWeapon.Parent = Cam
+		
+		weaponInHand = newWeapon
+		weaponData = require(Rep.Modules:FindFirstChild(primary))
+		
+		mainCF = weaponData.MainCFrame
+		
+		for i, parts in pairs(weaponInHand:GetChildren()) do
+			if parts:IsA("BasePart") or parts:IsA("MeshPart") then
+				parts.CanCollide = false
+			end
+		end
+		
+		holdSequence()
+	else
+		if Set then
+			-- do switching
+			if Type == "Primary" then
+				if Cam:FindFirstChild(weapon) then
+				else
+					-- primary
+					if Cam:FindFirstChild(gunTable[2]) then
+						Cam:FindFirstChild(gunTable[2]):Destroy()
+					end
+				
+					if Cam:FindFirstChild(gunTable[3]) then
+						Cam:FindFirstChild(gunTable[3]):Destroy()
+					end
+				
+					-- clone primary
+				
+					local newPrimary = Rep.GunModels[weapon]:Clone()
+					newPrimary.Parent = Cam	
+				
+					-- setting variables
+				
+					weaponInHand = newPrimary
+					weaponData = require(Rep.Modules:FindFirstChild(weaponInHand.Name))
+		
+					mainCF = weaponData.MainCFrame
+				
+					for i, parts in pairs(weaponInHand:GetChildren()) do
+						if parts:IsA("BasePart") or parts:IsA("MeshPart") then
+							parts.CanCollide = false
+						end
+					end
+				
+					holdSequence()
+				end
+			end
+		
+			if Type == "Secondary" then
+				if Cam:FindFirstChild(weapon) then
+				else
+					-- secondary
+					if Cam:FindFirstChild(gunTable[1]) then
+						Cam:FindFirstChild(gunTable[1]):Destroy()
+					end
+				
+					if Cam:FindFirstChild(gunTable[3]) then
+						Cam:FindFirstChild(gunTable[3]):Destroy()
+					end
+				
+					-- clone secondary
+				
+					local newPrimary = Rep.GunModels[weapon]:Clone()
+					newPrimary.Parent = Cam	
+				
+					-- setting variables
+				
+					weaponInHand = newPrimary
+					weaponData = require(Rep.Modules:FindFirstChild(weaponInHand.Name))
+		
+					mainCF = weaponData.MainCFrame
+					
+					for i, parts in pairs(weaponInHand:GetChildren()) do
+						if parts:IsA("BasePart") or parts:IsA("MeshPart") then
+							parts.CanCollide = false
+						end
+					end
+				
+					holdSequence()
+				end
+			end
+		
+			if Type == "Melee" then
+				if Cam:FindFirstChild(weapon) then
+				else
+					-- melee
+					if Cam:FindFirstChild(gunTable[1]) then
+						Cam:FindFirstChild(gunTable[1]):Destroy()
+					end
+				
+					if Cam:FindFirstChild(gunTable[2]) then
+						Cam:FindFirstChild(gunTable[2]):Destroy()
+					end
+				
+					-- clone melee
+				
+					local newPrimary = Rep.GunModels[weapon]:Clone()
+					newPrimary.Parent = Cam	
+				
+					-- setting variables
+				
+					weaponInHand = newPrimary
+					weaponData = require(Rep.Modules:FindFirstChild(weaponInHand.Name))
+		
+					mainCF = weaponData.MainCFrame
+				
+					for i, parts in pairs(weaponInHand:GetChildren()) do
+						if parts:IsA("BasePart") or parts:IsA("MeshPart") then
+						parts.CanCollide = false
+						end
+					end
+				
+					holdSequence()
+				
+					local newAnim = Instance.new("Animation")
+					newAnim.Parent = weaponInHand
+					newAnim.AnimationId = weaponData.EquipAnim
+					newAnim.Name = "Equip"
+			
+					local animLoad = weaponInHand:FindFirstChild("Humanoid"):LoadAnimation(newAnim)
+					animLoad:Play()
+					animLoad:AdjustSpeed(weaponData.EquipSpeed)
+				
+					animLoad.Stopped:Connect(function()
+						newAnim:Destroy()
+					end)
+				end
+			end
+		end
+	end
+end
+
+-- Gun functions
+
+local function shoot()
+	
+	local function fireGun(mousePos, firePointPos, acceleration, firepointOrientationY) -- fastcast stuff
+		Events.Shoot:FireServer(mousePos, firePointPos, acceleration, firepointOrientationY)
+	end
+	
+	sprinting = false
+	if weaponInHand and not reloading then
+		shooting = true
+		
+		-- animate shoot
+		
+		local newAnim = Instance.new("Animation")
+		newAnim.Parent = weaponInHand
+		newAnim.AnimationId = weaponData.ShootAnim
+		newAnim.Name = "Shoot"
+		local loadAnim = weaponInHand:FindFirstChild("Humanoid"):LoadAnimation(newAnim)
+		loadAnim:Play()
+		weaponInHand:FindFirstChild("GunModel"):FindFirstChild("Flame"):FindFirstChild("Fire"):Play()
+		
+		-- set variables
+		
+		local firepointThing = weaponInHand:FindFirstChild("GunModel"):FindFirstChild("Flame"):FindFirstChild("ShootAttachment").WorldPosition
+		local acceleration = weaponData.BulletAcceleration
+		local firepointOrientationY = weaponInHand:FindFirstChild("GunModel"):FindFirstChild("Flame").Orientation.Y
+		
+		fireGun(Mouse.Hit.Position, firepointThing, acceleration, firepointOrientationY)
+		
+		wait(60/weaponData.Firerate)
+		loadAnim:Stop()
+		newAnim:Destroy()
+		shooting = false
+	end
+end 
+
+local function reload()
+	if weaponInHand and not shooting then
+		reloading = true
+		local newAnim = Instance.new("Animation")
+		newAnim.Parent = weaponInHand
+		newAnim.AnimationId = weaponData.ReloadAnim
+		newAnim.Name = "Reload"
+		
+		if weaponInHand:FindFirstChild("Hold") then
+			local playing = weaponInHand:FindFirstChild("Humanoid"):GetPlayingAnimationTracks()
+			for i, track in pairs(playing) do
+				track:Stop()
+			end
+			weaponInHand:FindFirstChild("Hold"):Destroy()
+		end
+		
+		local loadAnim = weaponInHand:FindFirstChild("Humanoid"):LoadAnimation(newAnim)
+		loadAnim:Play()
+		loadAnim:AdjustSpeed(weaponData.ReloadAnimSpeed)
+		
+		loadAnim.Stopped:Connect(function()
+			newAnim:Destroy()
+			holdSequence()
+			reloading = false
+		end)
+	end
+end
+
+-- gun functions end
+setWeapons()
+
+-- Binds
+
+UIS.InputBegan:Connect(function(input, typing)
+	if weaponInHand then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if weaponData.Type == "Melee" then
+				if canSwing then
+					canSwing = false
+					local newAnim = Instance.new("Animation")
+					newAnim.Name = "Swing"
+					newAnim.Parent = weaponInHand
+					newAnim.AnimationId = weaponData.SwingAnim
+			
+					local loadAnim = weaponInHand:FindFirstChild("Humanoid"):LoadAnimation(newAnim)
+					loadAnim:Play()
+				
+					loadAnim.Stopped:Connect(function()
+						newAnim:Destroy()
+					end)
+					wait(weaponData.Delay)
+					canSwing = true
+				end
+			else
+				mouse1down = true
+				if mouse1down then
+					while mouse1down do
+						if not shooting and not reloading then
+							shoot()
+						else
+							break
+						end
+					end
+				end
+			end
+		end
+	
+		if input.UserInputType == Enum.UserInputType.MouseButton2 and sprinting == false then
+			aiming = true
+		end
+	
+		if not typing and input.KeyCode == Enum.KeyCode.R then
+			if reloading then
+			else
+				reload()
+			end
+		end
+	
+		if input.KeyCode == Enum.KeyCode.LeftShift and typing == false and aiming == false then
+			sprinting = true
+			Events:WaitForChild("Sprint"):FireServer(sprinting)
+		end
+	
+		-- switching
+	
+		if input.KeyCode == Enum.KeyCode.One and typing == false and aiming == false and shooting == false and reloading == false then
+			-- primary
+			setWeapons(gunTable[1], "Primary")
+		end
+	
+		if input.KeyCode == Enum.KeyCode.Two and typing == false and aiming == false and shooting == false and reloading == false then
+			-- secondary
+			setWeapons(gunTable[2], "Secondary")
+		end
+	
+		if input.KeyCode == Enum.KeyCode.Three and typing == false and aiming == false and shooting == false and reloading == false then
+			-- melee
+			setWeapons(gunTable[3], "Melee")
+		end
+	end
+end)
+
+UIS.InputEnded:Connect(function(input, typing)
+	if weaponInHand then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			mouse1down = false
+			if not mouse1down then
+				-- not mousedown
+			end
+		end
+	
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			aiming = false
+		end
+	
+		if input.KeyCode == Enum.KeyCode.LeftShift and typing == false then
+			sprinting = false
+			Events:WaitForChild("Sprint"):FireServer(sprinting)
+		end
+	end
+end)
+
+Char:WaitForChild("Humanoid").Running:Connect(function(speed)
+	if speed > 0.1 then
+		running = true
+	else
+		running = false
+	end
+end)
+
+
+
+
