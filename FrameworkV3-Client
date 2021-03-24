@@ -118,7 +118,7 @@ local function setup(primaryWeapon, secondaryWeapon, meleeWeapon)
 	melee = gunTable[3]
 end
 
-setup("Honey Badger", "", "Knife")
+--setup("Honey Badger", "", "Knife") <- setup function
 
 local function holdSequence(weapon, Type)
 	if weaponInHand then
